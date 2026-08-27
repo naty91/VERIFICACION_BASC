@@ -372,7 +372,6 @@ def signature_table(s, ass):
         [Paragraph("<b>ELABORADO / VERIFICADO POR</b>",CENTER),Paragraph("<b>APROBADO POR</b>",CENTER),Paragraph("<b>ASOCIADO DE NEGOCIO</b>",CENTER)],
         ["\n\n________________________","\n\n________________________","\n\n________________________"],
         [Paragraph(ptxt(verifier),CENTER),Paragraph(ptxt(approver),CENTER),Paragraph(ptxt(s.get('representante') or s.get('razon')),CENTER)],
-        [Paragraph(ptxt(ass.get('verified_date','')),CENTER),Paragraph(ptxt(ass.get('approval_date','')),CENTER),Paragraph("Fecha: __________________",CENTER)],
     ],colWidths=[5.5*cm,5.5*cm,5.5*cm])
 
 def contract_signature_table(s):
@@ -382,7 +381,6 @@ def contract_signature_table(s):
         ["\n\n\n_______________________________","\n\n\n_______________________________"],
         [Paragraph("<b>NELLI OLIMPIA GUAYGUA REYES</b>",CENTER),Paragraph(f"<b>{ptxt(proveedor_firma)}</b>",CENTER)],
         [Paragraph("Gerente General<br/>CENTRO DE ASESORAMIENTO Y SEGURIDAD EMPRESARIAL CENASE CIA. LTDA.<br/>RUC 0991317791001",CENTER),Paragraph(f"Representante legal<br/>{ptxt(s.get('razon',''))}<br/>RUC {ptxt(s.get('ruc',''))}",CENTER)],
-        [Paragraph("Fecha: __________________",CENTER),Paragraph("Fecha: __________________",CENTER)],
     ],colWidths=[8.1*cm,8.1*cm])
 
 def signing_package_zip(s, ass=None, evidence_items=None):
