@@ -17,7 +17,7 @@ from PIL import Image
 
 st.set_page_config(page_title="CENASE | BASC Proveedores", page_icon="🛡️", layout="wide")
 
-APP_VERSION = "2.2"
+APP_VERSION = "2.3"
 TODAY = date.today()
 BASE_DIR = Path(__file__).resolve().parent
 LOGO_PATH = BASE_DIR / "assets" / "logo_cenase.png"
@@ -332,7 +332,7 @@ def header_footer(canvas,doc):
     # Logo institucional en TODAS las páginas PDF.
     try:
         if LOGO_PATH.exists():
-            canvas.drawImage(str(LOGO_PATH),1.35*cm,h-1.55*cm,width=4.1*cm,height=0.95*cm,preserveAspectRatio=True,mask='auto')
+            canvas.drawImage(str(LOGO_PATH),w-5.0*cm,h-1.35*cm,width=3.5*cm,height=0.80*cm,preserveAspectRatio=True,mask='auto')
     except Exception:
         pass
     canvas.setFont('Helvetica-Bold',7); canvas.setFillColor(colors.HexColor('#17365D'))
@@ -417,8 +417,15 @@ def build_pdf(s,kind="expediente",ass=None,evidence_items=None):
         nprov=s.get('n_proveedor') or '—'
         blue=colors.HexColor('#17365D')
         light=colors.HexColor('#D9EAF7')
+        # Formato visual basado en el Excel original de CENASE: logo arriba, título negro sobre fondo blanco.
+        if LOGO_PATH.exists():
+            logo_doc = RLImage(str(LOGO_PATH), width=3.65*cm, height=0.88*cm)
+            logo_tbl = Table([["", logo_doc]], colWidths=[12.2*cm,4.2*cm])
+            logo_tbl.setStyle(TableStyle([('ALIGN',(1,0),(1,0),'CENTER'),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('BOTTOMPADDING',(0,0),(-1,-1),2)]))
+        else:
+            logo_tbl = Spacer(1,1)
         title=Table([[Paragraph("<b>ACUERDO DE CONFIDENCIALIDAD Y PROTECCIÓN DE DATOS PERSONALES</b>",CENTER)]],colWidths=[16.4*cm])
-        title.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),blue),('TEXTCOLOR',(0,0),(-1,-1),colors.white),('BOX',(0,0),(-1,-1),0.6,blue),('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5)]))
+        title.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),colors.white),('TEXTCOLOR',(0,0),(-1,-1),colors.black),('LINEBELOW',(0,0),(-1,-1),0.45,colors.HexColor('#B7B7B7')),('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)]))
         provtbl=Table([
             [Paragraph("<b>PROVEEDOR</b>",CENTER),"",],
             [Paragraph("Dirección:",SMALL),Paragraph(ptxt(domicilio),SMALL)],
@@ -436,7 +443,7 @@ def build_pdf(s,kind="expediente",ass=None,evidence_items=None):
         ],colWidths=[5.8*cm,10.6*cm])
         centbl.setStyle(TableStyle([('SPAN',(0,0),(1,0)),('BACKGROUND',(0,0),(1,0),light),('ALIGN',(0,0),(1,0),'CENTER'),('GRID',(0,0),(-1,-1),0.5,colors.HexColor('#666666')),('VALIGN',(0,0),(-1,-1),'TOP')]))
         return [
-            title, Spacer(1,6),
+            logo_tbl, Spacer(1,4), title, Spacer(1,6),
             Paragraph(f"<b>N° PROVEEDOR:</b> {ptxt(nprov)}",BODY),
             Paragraph("Conste por el presente documento el Acuerdo de Confidencialidad y Protección de Datos, que celebran de una parte:",BODY),
             Paragraph(f"<b>A.</b> La compañía de seguridad {CENASE['razon']}, con RUC {CENASE['ruc']}, debida y legalmente representada por {CENASE['representante']} – {CENASE['cargo']}, cuya personería se acredita con el nombramiento que se adjunta al presente instrumento en calidad de documento habilitante, a quien en lo posterior se la denominará “CENASE”, por otra parte;",BODY),
@@ -470,7 +477,10 @@ def build_pdf(s,kind="expediente",ass=None,evidence_items=None):
             t=Table([[Paragraph(f"<b>{text}</b>",CENTER)]],colWidths=[16.4*cm])
             t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),blue),('TEXTCOLOR',(0,0),(-1,-1),colors.white),('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)]))
             return t
+        security_logo = RLImage(str(LOGO_PATH), width=3.65*cm, height=0.88*cm) if LOGO_PATH.exists() else Spacer(1,1)
         return [
+            Table([["", security_logo]], colWidths=[12.2*cm,4.2*cm], style=[('ALIGN',(1,0),(1,0),'CENTER')]),
+            Spacer(1,4),
             Paragraph("<b>ANEXO</b>",CENTER),
             Paragraph("<font color='#005B9E'><b>ACUERDO DE SEGURIDAD DE ASOCIADOS DE NEGOCIO BASC</b></font>",CENTER),
             Spacer(1,10),
@@ -497,40 +507,56 @@ def build_pdf(s,kind="expediente",ass=None,evidence_items=None):
         ]
 
     def verification_section():
-        x=[Paragraph("1. INFORMACIÓN GENERAL",H1)]
-        x.append(Paragraph(f"Beneficiarios finales / estructura relevante: {ptxt(s.get('beneficiarios','') or 'PENDIENTE')}",BODY))
-        x.append(Paragraph("2. CROQUIS Y FOTOGRAFÍA DE UBICACIÓN",H1))
-        croquis=ass.get('croquis_bytes'); foto=ass.get('foto_bytes')
-        tab=Table([[image_flowable(croquis),image_flowable(foto)]],[8.1*cm,8.1*cm])
-        tab.setStyle(TableStyle([('BOX',(0,0),(-1,-1),0.5,colors.grey),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('ALIGN',(0,0),(-1,-1),'CENTER')]))
-        x.append(tab)
-        x.append(Paragraph("3. PREGUNTAS ESPECÍFICAS DEL REGISTRO",H1))
-        qrows=[["Control","Resultado"]]
-        qrows += [
-            ["¿La empresa cuenta con certificado BASC?",ass.get('has_basc','PENDIENTE')],
-            ["¿Tiene acceso a instalaciones de la empresa?","Sí" if ass.get('access') else "No"],
-            ["¿Tiene acceso a información confidencial?","Sí" if ass.get('info') else "No"],
-            ["¿Tiene suscrito contrato mercantil o acuerdo de confidencialidad con CENASE?",ass.get('has_contract','PENDIENTE')],
-            ["¿Se constató el estado tributario en el SRI?",verifs.get('RUC / estado tributario SRI',{}).get('resultado','PENDIENTE')],
-            ["¿Se consultó información societaria/representantes/beneficiarios finales en Supercias?",verifs.get('Superintendencia de Compañías',{}).get('resultado','PENDIENTE')],
-            ["¿Se verificaron posibles procesos en Función Judicial?",verifs.get('Función Judicial - proveedor',{}).get('resultado','PENDIENTE')],
-            ["¿Se verificaron noticias del delito / fuentes de Fiscalía?",verifs.get('Fiscalía / fuentes oficiales - proveedor',{}).get('resultado','PENDIENTE')],
+        light=colors.HexColor('#D9EAF7'); blue=colors.HexColor('#0070C0'); border=colors.HexColor('#666666')
+        def P(v,style=SMALL): return Paragraph(ptxt(v or ''),style)
+        def lab(n,t): return Paragraph(f"<font color='#0070C0'><b>{n}</b></font> &nbsp; <b>{ptxt(t)}</b>",SMALL)
+        # Encabezado como el registro original.
+        logo = RLImage(str(LOGO_PATH),width=3.4*cm,height=0.82*cm) if LOGO_PATH.exists() else Spacer(1,1)
+        head=Table([[logo,Paragraph("<font color='#0070C0'><b>REGISTRO DE VERIFICACIÓN DE ASOCIADOS DE NEGOCIO</b></font>",ParagraphStyle('vrtitle',parent=CENTER,fontSize=14,leading=17))]],colWidths=[4.0*cm,12.4*cm])
+        head.setStyle(TableStyle([('BACKGROUND',(1,0),(1,0),light),('BOX',(0,0),(-1,-1),0.7,border),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('ALIGN',(0,0),(0,0),'CENTER'),('TOPPADDING',(0,0),(-1,-1),8),('BOTTOMPADDING',(0,0),(-1,-1),8)]))
+        info=[
+          [lab(1,'Razón social:'),P(s.get('razon')),lab(2,'Nombre comercial:'),P(s.get('nombre_comercial')),lab(3,'Persona'),P(s.get('tipo'))],
+          [lab(4,'Dirección declarada en los documentos legales:'),P(s.get('direccion')),lab(5,'Página WEB:'),P(s.get('web')),lab(6,'Teléfono:'),P(s.get('telefono'))],
+          [lab(7,'Dirección de la ubicación física:'),P(s.get('ubicacion_fisica')),lab(8,'No. RUC:'),P(s.get('ruc')),lab(9,'Inicio operaciones:'),P(s.get('inicio_operaciones'))],
+          [lab(10,'Actividad principal registrada en el RUC:'),P(s.get('actividad_ruc')),lab(11,'Nombre de contacto:'),P(s.get('contacto')),'',''],
+          [lab(12,'Nombre del representante legal:'),P(s.get('representante')),lab(13,'Telf / E-mail:'),P((s.get('telefono') or '')+' / '+(s.get('email') or '')),'',''],
+          [lab(14,'Fecha de inicio del servicio con CENASE:'),P(s.get('inicio_servicio')),lab(15,'Actividad comercial con CENASE:'),P(s.get('servicio')),lab(16,'Tipo de Asociado'),P('Proveedor')],
+          [lab(17,'Beneficiarios finales'),P(s.get('beneficiarios')),'','','',''],
         ]
-        qt=Table([[Paragraph(ptxt(c),SMALL) for c in row] for row in qrows],colWidths=[12.6*cm,3.6*cm],repeatRows=1)
-        qt.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#4472C4')),('TEXTCOLOR',(0,0),(-1,0),colors.white),('GRID',(0,0),(-1,-1),0.3,colors.grey),('VALIGN',(0,0),(-1,-1),'TOP')]))
-        x.append(qt)
-        x.append(Paragraph("4. VERIFICACIONES Y EVIDENCIAS",H1))
-        rows=[["Consulta","Resultado","Fecha","Evidencia / Observación"]]
-        for k in VERIFICATIONS:
-            v=verifs.get(k,{})
-            rows.append([k,v.get('resultado','PENDIENTE'),str(v.get('fecha','')),v.get('evidencia','')])
-        t=Table([[Paragraph(ptxt(c),SMALL) for c in row] for row in rows],colWidths=[4.3*cm,3.1*cm,2.4*cm,6.4*cm],repeatRows=1)
-        t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),colors.HexColor('#4472C4')),('TEXTCOLOR',(0,0),(-1,0),colors.white),('GRID',(0,0),(-1,-1),0.25,colors.grey),('VALIGN',(0,0),(-1,-1),'TOP')]))
-        x.append(t)
-        x.append(Paragraph("5. RESULTADO DE LA EVALUACIÓN: NIVEL DE CRITICIDAD",H1))
-        x.append(Paragraph(f"De acuerdo con la información registrada, el asociado de negocio presenta criticidad <b>{risk.get('label','PENDIENTE')}</b>, con puntaje {risk.get('score',0)}/100. Fecha de evaluación: {ptxt(ass.get('verified_date','PENDIENTE'))}.",BODY))
-        x.append(Spacer(1,10)); x.append(signature_table(s,ass))
-        return x
+        it=Table(info,colWidths=[3.35*cm,4.25*cm,2.65*cm,3.25*cm,1.6*cm,1.3*cm])
+        it.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.55,border),('VALIGN',(0,0),(-1,-1),'TOP'),('LEFTPADDING',(0,0),(-1,-1),3),('RIGHTPADDING',(0,0),(-1,-1),3),('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),5)]))
+        media_header=Table([[P('<b>17. CROQUIS (Ubicación física)</b>',CENTER),P('<b>18. FOTOGRAFÍA (Ubicación física)</b>',CENTER)]],colWidths=[8.1*cm,8.1*cm])
+        media_header.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),light),('TEXTCOLOR',(0,0),(-1,-1),blue),('GRID',(0,0),(-1,-1),0.55,border)]))
+        media=Table([[image_flowable(ass.get('croquis_bytes'),7.7*cm,6.1*cm),image_flowable(ass.get('foto_bytes'),7.7*cm,6.1*cm)]],colWidths=[8.1*cm,8.1*cm],rowHeights=[6.45*cm])
+        media.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.55,border),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('ALIGN',(0,0),(-1,-1),'CENTER')]))
+        v=verifs
+        q=[
+          ('19','¿La empresa cuenta con certificado BASC?',ass.get('has_basc','PENDIENTE')),
+          ('20','¿El asociado tiene acceso a las instalaciones de la empresa?','Sí' if ass.get('access') else 'No'),
+          ('21','¿El asociado tiene acceso a información confidencial de la empresa?','Sí' if ass.get('info') else 'No'),
+          ('22','¿El asociado tiene suscrito contrato mercantil o acuerdo de confidencialidad con CENASE?',ass.get('has_contract','PENDIENTE')),
+          ('23','¿Se constató el estado tributario de la empresa en el SRI?',v.get('RUC / estado tributario SRI',{}).get('resultado','PENDIENTE')),
+          ('24','¿Se consultó la información de representantes legales / administradores / accionistas / beneficiarios finales en Supercias?',v.get('Superintendencia de Compañías',{}).get('resultado','PENDIENTE')),
+          ('25','¿Se verificaron posibles demandas y juicios en la Función Judicial?',v.get('Función Judicial - proveedor',{}).get('resultado','PENDIENTE')),
+          ('26','¿Se verificaron posibles demandas / noticias del delito en Fiscalía?',v.get('Fiscalía / fuentes oficiales - proveedor',{}).get('resultado','PENDIENTE')),
+        ]
+        qrows=[]
+        for i in range(0,8,2):
+            a,b=q[i],q[i+1]
+            qrows.append([lab(a[0],a[1]),P(a[2],CENTER),lab(b[0],b[1]),P(b[2],CENTER)])
+        qt=Table(qrows,colWidths=[6.8*cm,1.25*cm,6.8*cm,1.25*cm])
+        qt.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.55,border),('BACKGROUND',(1,0),(1,-1),light),('BACKGROUND',(3,0),(3,-1),light),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('TOPPADDING',(0,0),(-1,-1),5),('BOTTOMPADDING',(0,0),(-1,-1),5)]))
+        res_head=Table([[Paragraph("<font color='#0070C0'><b>RESULTADO DE LA EVALUACIÓN: NIVEL DE CRITICIDAD</b></font>",CENTER),P('<b>fecha de evaluación</b>',CENTER)]],colWidths=[13.4*cm,2.8*cm])
+        res_head.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),light),('GRID',(0,0),(-1,-1),0.55,border)]))
+        fecha=ass.get('verified_date','PENDIENTE')
+        desc=Table([[P(f"De acuerdo al análisis de la información suministrada, el potencial ASOCIADO DE NEGOCIO tiene el siguiente nivel de criticidad: <b>{risk.get('label','PENDIENTE')}</b>. Puntaje: {risk.get('score',0)}/100."),Paragraph(f"<font color='#C00000'><b>{ptxt(fecha)}</b></font>",ParagraphStyle('datecrit',parent=CENTER,fontSize=13))]],colWidths=[13.4*cm,2.8*cm])
+        desc.setStyle(TableStyle([('GRID',(0,0),(-1,-1),0.55,border),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
+        label=risk.get('label','PENDIENTE')
+        boxes=Table([[P('<b>ALTO</b>',CENTER),P('X' if label in ('ALTA','CRÍTICA') else '',CENTER),P('<b>MEDIO</b>',CENTER),P('X' if label=='MEDIA' else '',CENTER),P('<b>BAJO</b>',CENTER),P('X' if label=='BAJA' else '',CENTER)]],colWidths=[2.8*cm,1.4*cm,2.8*cm,1.4*cm,2.8*cm,1.4*cm])
+        boxes.setStyle(TableStyle([('BACKGROUND',(0,0),(0,0),colors.HexColor('#F4CCCC')),('BACKGROUND',(2,0),(2,0),colors.HexColor('#FFF2CC')),('BACKGROUND',(4,0),(4,0),colors.HexColor('#D9EAD3')),('GRID',(0,0),(-1,-1),0.5,border),('FONTSIZE',(0,0),(-1,-1),12),('ALIGN',(0,0),(-1,-1),'CENTER'),('VALIGN',(0,0),(-1,-1),'MIDDLE')]))
+        foot=Table([[Paragraph("Este registro es realizado por el departamento de compras para el caso de proveedores, y el departamento comercial para el caso de clientes.<br/>Para llenar este formulario, se debe tomar los lineamientos del procedimiento de GESTIÓN DE ASOCIADOS DE NEGOCIO.",CENTER)]],colWidths=[16.2*cm])
+        foot.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),light),('TEXTCOLOR',(0,0),(-1,-1),blue),('GRID',(0,0),(-1,-1),0.5,border)]))
+        return [head,Spacer(1,4),it,Spacer(1,5),media_header,media,Spacer(1,6),qt,Spacer(1,6),res_head,desc,Spacer(1,6),boxes,Spacer(1,7),foot]
 
     def evaluation_section():
         total,den,pct=calc_eval(evaluation)
