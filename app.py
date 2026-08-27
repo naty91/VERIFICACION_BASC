@@ -20,7 +20,11 @@ st.set_page_config(page_title="CENASE | BASC Proveedores", page_icon="🛡️", 
 APP_VERSION = "2.3"
 TODAY = date.today()
 BASE_DIR = Path(__file__).resolve().parent
-LOGO_PATH = BASE_DIR / "assets" / "logo_cenase.png"
+LOGO_CANDIDATES = [
+    BASE_DIR / "assets" / "logo_cenase.png",
+    BASE_DIR / "logo_cenase.png",
+]
+LOGO_PATH = next((p for p in LOGO_CANDIDATES if p.exists()), LOGO_CANDIDATES[0])
 CENASE = {
     "razon": "CENTRO DE ASESORAMIENTO Y SEGURIDAD EMPRESARIAL CENASE CIA. LTDA.",
     "ruc": "0991317791001",
@@ -329,15 +333,19 @@ def ptxt(x):
 
 def header_footer(canvas,doc):
     canvas.saveState(); w,h=A4
-    # Logo institucional en TODAS las páginas PDF.
+    # Encabezado institucional: logo CENASE en TODAS las páginas.
     try:
         if LOGO_PATH.exists():
-            canvas.drawImage(str(LOGO_PATH),w-5.0*cm,h-1.35*cm,width=3.5*cm,height=0.80*cm,preserveAspectRatio=True,mask='auto')
+            canvas.drawImage(str(LOGO_PATH), 1.35*cm, h-1.55*cm,
+                             width=4.0*cm, height=1.05*cm,
+                             preserveAspectRatio=True, anchor='sw', mask='auto')
     except Exception:
         pass
-    canvas.setFont('Helvetica-Bold',7); canvas.setFillColor(colors.HexColor('#17365D'))
-    canvas.drawString(1.35*cm,0.75*cm,'CENASE CIA. LTDA. - SGCS BASC | Asociados de Negocio')
-    canvas.setFont('Helvetica',7); canvas.drawRightString(w-1.35*cm,0.75*cm,f'Página {doc.page}')
+    # Pie discreto, sin barras ni elementos que interfieran con el formato original.
+    canvas.setFillColor(colors.HexColor('#17365D'))
+    canvas.setFont('Helvetica',6.5)
+    canvas.drawString(1.35*cm,0.62*cm,'CENASE CIA. LTDA. - SGCS BASC')
+    canvas.drawRightString(w-1.35*cm,0.62*cm,f'Página {doc.page}')
     canvas.restoreState()
 
 def info_table(s):
@@ -376,12 +384,36 @@ def signature_table(s, ass):
 
 def contract_signature_table(s):
     proveedor_firma=s.get('representante') or 'REPRESENTANTE LEGAL PENDIENTE'
-    return Table([
-        [Paragraph("<b>CENASE</b>",CENTER),Paragraph("<b>PROVEEDOR / ASOCIADO DE NEGOCIO</b>",CENTER)],
-        ["\n\n\n_______________________________","\n\n\n_______________________________"],
-        [Paragraph("<b>NELLI OLIMPIA GUAYGUA REYES</b>",CENTER),Paragraph(f"<b>{ptxt(proveedor_firma)}</b>",CENTER)],
-        [Paragraph("Gerente General<br/>CENTRO DE ASESORAMIENTO Y SEGURIDAD EMPRESARIAL CENASE CIA. LTDA.<br/>RUC 0991317791001",CENTER),Paragraph(f"Representante legal<br/>{ptxt(s.get('razon',''))}<br/>RUC {ptxt(s.get('ruc',''))}",CENTER)],
-    ],colWidths=[8.1*cm,8.1*cm])
+    left = [
+        Paragraph("<b>CENASE</b>",CENTER),
+        Spacer(1,34),
+        Paragraph("________________________________",CENTER),
+        Paragraph("<b>NELLI OLIMPIA GUAYGUA REYES</b>",CENTER),
+        Spacer(1,4),
+        Paragraph("Gerente General",CENTER),
+        Paragraph("CENTRO DE ASESORAMIENTO Y SEGURIDAD<br/>EMPRESARIAL CENASE CIA. LTDA.",CENTER),
+        Paragraph("RUC 0991317791001",CENTER),
+    ]
+    right = [
+        Paragraph("<b>PROVEEDOR / ASOCIADO DE NEGOCIO</b>",CENTER),
+        Spacer(1,34),
+        Paragraph("________________________________",CENTER),
+        Paragraph(f"<b>{ptxt(proveedor_firma)}</b>",CENTER),
+        Spacer(1,4),
+        Paragraph("Representante legal",CENTER),
+        Paragraph(ptxt(s.get('razon','')),CENTER),
+        Paragraph(f"RUC {ptxt(s.get('ruc',''))}",CENTER),
+    ]
+    t = Table([[left,right]], colWidths=[8.1*cm,8.1*cm], splitByRow=0)
+    t.setStyle(TableStyle([
+        ('VALIGN',(0,0),(-1,-1),'TOP'),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('LEFTPADDING',(0,0),(-1,-1),4),
+        ('RIGHTPADDING',(0,0),(-1,-1),4),
+        ('TOPPADDING',(0,0),(-1,-1),2),
+        ('BOTTOMPADDING',(0,0),(-1,-1),2),
+    ]))
+    return KeepTogether([t])
 
 def signing_package_zip(s, ass=None, evidence_items=None):
     ass=ass or {}; evidence_items=evidence_items or []
@@ -399,7 +431,7 @@ def build_pdf(s,kind="expediente",ass=None,evidence_items=None):
     ass=ass or {}; evidence_items=evidence_items or []
     risk=ass.get('risk') or {'label':'BAJA','score':0,'next':due_date_by_risk('BAJA')}
     checklist=ass.get('checklist',{}); verifs=ass.get('verifs',{}); evaluation=ass.get('evaluation',{})
-    buf=io.BytesIO(); doc=SimpleDocTemplate(buf,pagesize=A4,rightMargin=1.35*cm,leftMargin=1.35*cm,topMargin=1.9*cm,bottomMargin=1.25*cm)
+    buf=io.BytesIO(); doc=SimpleDocTemplate(buf,pagesize=A4,rightMargin=1.35*cm,leftMargin=1.35*cm,topMargin=2.15*cm,bottomMargin=1.15*cm)
     titlemap={"conf":"ACUERDO DE CONFIDENCIALIDAD Y PROTECCIÓN DE DATOS PERSONALES","seguridad":"ACUERDO DE SEGURIDAD COMO ASOCIADO DE NEGOCIO BASC","acuerdo_completo":"ACUERDO DE PROVEEDOR CENASE + ANEXO BASC","verificacion":"REGISTRO DE VERIFICACIÓN DE ASOCIADOS DE NEGOCIO","evaluacion":"EVALUACIÓN Y CRITICIDAD DEL ASOCIADO DE NEGOCIO","plan":"PLAN DE ACCIÓN DEL ASOCIADO DE NEGOCIO","expediente":"EXPEDIENTE BASC COMPLETO DEL ASOCIADO DE NEGOCIO"}
     # Los acuerdos siguen el formato contractual original; los demás documentos usan ficha inicial.
     story=[] if kind in ("conf","seguridad","acuerdo_completo") else [Paragraph(titlemap[kind],TITLE),info_table(s),Spacer(1,7)]
@@ -416,12 +448,7 @@ def build_pdf(s,kind="expediente",ass=None,evidence_items=None):
         blue=colors.HexColor('#17365D')
         light=colors.HexColor('#D9EAF7')
         # Formato visual basado en el Excel original de CENASE: logo arriba, título negro sobre fondo blanco.
-        if LOGO_PATH.exists():
-            logo_doc = RLImage(str(LOGO_PATH), width=3.65*cm, height=0.88*cm)
-            logo_tbl = Table([["", logo_doc]], colWidths=[12.2*cm,4.2*cm])
-            logo_tbl.setStyle(TableStyle([('ALIGN',(1,0),(1,0),'CENTER'),('VALIGN',(0,0),(-1,-1),'MIDDLE'),('BOTTOMPADDING',(0,0),(-1,-1),2)]))
-        else:
-            logo_tbl = Spacer(1,1)
+        logo_tbl = Spacer(1,6)
         title=Table([[Paragraph("<b>ACUERDO DE CONFIDENCIALIDAD Y PROTECCIÓN DE DATOS PERSONALES</b>",CENTER)]],colWidths=[16.4*cm])
         title.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),colors.white),('TEXTCOLOR',(0,0),(-1,-1),colors.black),('LINEBELOW',(0,0),(-1,-1),0.45,colors.HexColor('#B7B7B7')),('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)]))
         provtbl=Table([
@@ -465,7 +492,7 @@ def build_pdf(s,kind="expediente",ass=None,evidence_items=None):
             Paragraph("• Acuerdo de seguridad como asociado de negocio BASC<br/>• Copia de Registro Único de Contribuyente vigente de CENASE<br/>• Copia de Registro Único de Contribuyente vigente del PROVEEDOR<br/>• Copia de cédula del Rep. Legal de CENASE<br/>• Copia de cédula del Rep. Legal del PROVEEDOR<br/>• Cotización de servicios aprobados",BODY),
             Paragraph("<b>QUINTA: ACEPTACIÓN Y FIRMA.-</b> Libre y voluntariamente, previo el cumplimiento de todos los requisitos exigidos por las leyes de la materia, las partes declaran expresamente su aceptación a todo lo convenido en el presente contrato, a cuyas estipulaciones se someten.",BODY),
             Paragraph("Las Partes acuerdan que el presente contrato podrá ser suscrito de forma manuscrita o mediante firma electrónica. De conformidad con los artículos 14, 45 y 46 de la Ley de Comercio Electrónico, Firmas Electrónicas y Mensajes de Datos, la firma electrónica tiene igual validez y los mismos efectos jurídicos que la firma manuscrita, por lo que las Partes reconocen que el contrato suscrito por este medio es plenamente válido, vinculante y exigible. La firma electrónica deberá haber sido emitida por una entidad de certificación acreditada ante la ARCOTEL y podrá estamparse y verificarse a través de la herramienta oficial FirmaEC.",BODY),
-            Paragraph(f"Para constancia de lo acordado, las partes intervinientes suscriben el presente contrato por triplicado en la ciudad de Guayaquil, el {TODAY.strftime('%d/%m/%Y')}.",BODY),
+            Paragraph("Para constancia de lo acordado, las partes intervinientes suscriben el presente contrato por triplicado en la ciudad de Guayaquil.",BODY),
             Spacer(1,12),contract_signature_table(s)
         ]
 
@@ -475,10 +502,8 @@ def build_pdf(s,kind="expediente",ass=None,evidence_items=None):
             t=Table([[Paragraph(f"<b>{text}</b>",CENTER)]],colWidths=[16.4*cm])
             t.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,-1),blue),('TEXTCOLOR',(0,0),(-1,-1),colors.white),('TOPPADDING',(0,0),(-1,-1),4),('BOTTOMPADDING',(0,0),(-1,-1),4)]))
             return t
-        security_logo = RLImage(str(LOGO_PATH), width=3.65*cm, height=0.88*cm) if LOGO_PATH.exists() else Spacer(1,1)
         return [
-            Table([["", security_logo]], colWidths=[12.2*cm,4.2*cm], style=[('ALIGN',(1,0),(1,0),'CENTER')]),
-            Spacer(1,4),
+            Spacer(1,6),
             Paragraph("<b>ANEXO</b>",CENTER),
             Paragraph("<font color='#005B9E'><b>ACUERDO DE SEGURIDAD DE ASOCIADOS DE NEGOCIO BASC</b></font>",CENTER),
             Spacer(1,10),
