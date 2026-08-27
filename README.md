@@ -1,4 +1,4 @@
-# CENASE BASC Proveedores – v2.0
+# CENASE BASC Proveedores – v2.1
 
 Aplicación Streamlit para la gestión de asociados de negocio/proveedores de CENASE.
 
@@ -18,6 +18,11 @@ Aplicación Streamlit para la gestión de asociados de negocio/proveedores de CE
 - Histórico de evaluaciones.
 - Alertas por vencimiento/próxima reevaluación.
 - PDFs individuales y expediente BASC completo.
+- Módulo **Documentos para firma** dentro del expediente del proveedor.
+- Vista previa de razón social, RUC, representante legal, dirección, teléfono, correo y contacto antes de generar documentos.
+- Acuerdo de Confidencialidad y Protección de Datos en PDF con datos automáticos del proveedor y firmas de CENASE/proveedor.
+- Acuerdo de Seguridad como Asociado de Negocio BASC en PDF con datos automáticos y firmas.
+- ZIP **Paquete para firma** con ambos acuerdos.
 - ZIP por proveedor y ZIP masivo.
 - Reporte maestro Excel.
 - Respaldo/restauración de la sesión en ZIP.

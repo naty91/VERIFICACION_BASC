@@ -17,7 +17,7 @@ from PIL import Image
 
 st.set_page_config(page_title="CENASE | BASC Proveedores", page_icon="🛡️", layout="wide")
 
-APP_VERSION = "2.0"
+APP_VERSION = "2.1"
 TODAY = date.today()
 CENASE = {
     "razon": "CENTRO DE ASESORAMIENTO Y SEGURIDAD EMPRESARIAL CENASE CIA. LTDA.",
@@ -28,6 +28,7 @@ CENASE = {
     "telefono": "044 608055",
     "correo": "bcamacho@cenase.ec; contador@cenase.ec",
     "web": "www.cenase.ec",
+    "contacto": "Nathaly Varela",
 }
 
 OFFICIAL_LINKS = {
@@ -342,6 +343,27 @@ def signature_table(s, ass):
         [Paragraph(ptxt(ass.get('verified_date','')),CENTER),Paragraph(ptxt(ass.get('approval_date','')),CENTER),Paragraph("Fecha: __________________",CENTER)],
     ],colWidths=[5.5*cm,5.5*cm,5.5*cm])
 
+def contract_signature_table(s):
+    proveedor_firma=s.get('representante') or 'REPRESENTANTE LEGAL PENDIENTE'
+    return Table([
+        [Paragraph("<b>CENASE</b>",CENTER),Paragraph("<b>PROVEEDOR / ASOCIADO DE NEGOCIO</b>",CENTER)],
+        ["\n\n\n_______________________________","\n\n\n_______________________________"],
+        [Paragraph("<b>NELLI OLIMPIA GUAYGUA REYES</b>",CENTER),Paragraph(f"<b>{ptxt(proveedor_firma)}</b>",CENTER)],
+        [Paragraph("Gerente General<br/>CENTRO DE ASESORAMIENTO Y SEGURIDAD EMPRESARIAL CENASE CIA. LTDA.<br/>RUC 0991317791001",CENTER),Paragraph(f"Representante legal<br/>{ptxt(s.get('razon',''))}<br/>RUC {ptxt(s.get('ruc',''))}",CENTER)],
+        [Paragraph("Fecha: __________________",CENTER),Paragraph("Fecha: __________________",CENTER)],
+    ],colWidths=[8.1*cm,8.1*cm])
+
+def signing_package_zip(s, ass=None, evidence_items=None):
+    ass=ass or {}; evidence_items=evidence_items or []
+    b=io.BytesIO()
+    prefix=f"{clean_ruc(s.get('ruc'))}_{safe_filename(s.get('razon'))}"
+    with zipfile.ZipFile(b,'w',zipfile.ZIP_DEFLATED) as z:
+        z.writestr(f"{prefix}_01_Acuerdo_Confidencialidad_Proteccion_Datos.pdf",build_pdf(s,'conf',ass,evidence_items))
+        z.writestr(f"{prefix}_02_Acuerdo_Seguridad_Asociado_BASC.pdf",build_pdf(s,'seguridad',ass,evidence_items))
+        z.writestr("LEEME.txt","Documentos preparados para firma de CENASE y del representante legal del proveedor. Verifique los datos antes de suscribirlos.")
+    b.seek(0)
+    return b.getvalue()
+
 def build_pdf(s,kind="expediente",ass=None,evidence_items=None):
     ass=ass or {}; evidence_items=evidence_items or []
     risk=ass.get('risk') or {'label':'BAJA','score':0,'next':due_date_by_risk('BAJA')}
@@ -351,13 +373,32 @@ def build_pdf(s,kind="expediente",ass=None,evidence_items=None):
     story=[Paragraph(titlemap[kind],TITLE),info_table(s),Spacer(1,7)]
 
     def conf_section():
+        proveedor=s.get('razon') or 'PROVEEDOR PENDIENTE'
+        ruc=s.get('ruc') or 'PENDIENTE'
+        rep=s.get('representante') or 'REPRESENTANTE LEGAL PENDIENTE'
+        domicilio=s.get('direccion') or 'PENDIENTE'
+        telefono=s.get('telefono') or 'PENDIENTE'
+        correo=s.get('email') or 'PENDIENTE'
+        contacto=s.get('contacto') or rep
         return [
-            Paragraph("PRIMERA: OBJETO",H1),Paragraph(f"El presente acuerdo tiene por objeto garantizar el secreto, confidencialidad y uso lícito de la información y datos personales a los que <b>{ptxt(s.get('razon','EL PROVEEDOR'))}</b> tenga acceso con ocasión de los bienes o servicios suministrados a CENASE.",BODY),
-            Paragraph("SEGUNDA: CONFIDENCIALIDAD",H1),Paragraph("EL PROVEEDOR reconoce como confidencial la información comercial, técnica, financiera, listados, planes de seguridad, vulnerabilidades, claves de acceso, estrategias, bases de datos y demás información no pública de CENASE. Se obliga a utilizarla únicamente para el objeto de la relación, no divulgarla ni transferirla sin autorización y mantener reserva aun después de terminada la relación.",BODY),
-            Paragraph("TERCERA: PROTECCIÓN DE DATOS PERSONALES",H1),Paragraph("Cuando la prestación implique tratamiento de datos personales, EL PROVEEDOR deberá tratar los datos únicamente para la finalidad autorizada, limitar accesos, aplicar medidas técnicas y organizativas apropiadas, comunicar incidentes de seguridad sin dilación indebida y devolver o eliminar la información al concluir la finalidad, salvo obligación legal de conservación.",BODY),
-            Paragraph("CUARTA: INCIDENTES Y RESPONSABILIDAD",H1),Paragraph("EL PROVEEDOR informará cualquier pérdida, acceso no autorizado, alteración, divulgación o uso indebido de información y colaborará con las medidas de contención, investigación y remediación. Responderá por incumplimientos atribuibles a su actuación, personal o subcontratistas conforme al contrato y la normativa aplicable.",BODY),
-            Paragraph("QUINTA: COMUNICACIONES",H1),Paragraph(f"PROVEEDOR: {ptxt(s.get('direccion',''))} | {ptxt(s.get('telefono',''))} | {ptxt(s.get('email',''))}. CENASE: {CENASE['direccion']} | {CENASE['telefono']} | {CENASE['correo']}.",BODY),
-            Spacer(1,18),signature_table(s,ass)
+            Paragraph(f"Conste por el presente documento el Acuerdo de Confidencialidad y Protección de Datos Personales que celebran, por una parte, <b>{CENASE['razon']}</b>, con RUC <b>{CENASE['ruc']}</b>, debidamente representada por <b>{CENASE['representante']}</b>, en calidad de {CENASE['cargo']}, a quien en adelante se denominará <b>CENASE</b>; y, por otra parte, <b>{ptxt(proveedor)}</b>, con RUC <b>{ptxt(ruc)}</b>, debidamente representada por <b>{ptxt(rep)}</b>, a quien en adelante se denominará <b>EL PROVEEDOR</b>. Las partes acuerdan sujetarse a las siguientes cláusulas:",BODY),
+            Paragraph("PRIMERA: OBJETO",H1),Paragraph("El presente Acuerdo tiene por objeto garantizar el secreto, confidencialidad, integridad y uso autorizado de la información, documentación y datos personales a los que EL PROVEEDOR tenga acceso con ocasión de la provisión de bienes o servicios a CENASE.",BODY),
+            Paragraph("SEGUNDA: CONFIDENCIALIDAD DE LA INFORMACIÓN",H1),Paragraph("EL PROVEEDOR reconoce que toda información comercial, técnica, operativa, financiera, contractual, de clientes, planes y procedimientos de seguridad, vulnerabilidades, bases de datos, claves, registros, informes y demás información no pública de CENASE tiene carácter confidencial. En consecuencia se obliga a:",BODY),
+            Paragraph("1. Utilizar la información única y exclusivamente para cumplir con la provisión de los bienes o servicios contratados por CENASE.",BODY),
+            Paragraph("2. No divulgar, copiar, reproducir, transferir ni permitir el acceso a dicha información a terceros no autorizados.",BODY),
+            Paragraph("3. Mantener el secreto profesional y la obligación de confidencialidad incluso después de terminada la relación comercial con CENASE.",BODY),
+            Paragraph("TERCERA: PROTECCIÓN DE DATOS PERSONALES",H1),Paragraph("En cumplimiento de la normativa aplicable de protección de datos personales, EL PROVEEDOR se compromete a tratar los datos personales únicamente bajo las instrucciones y finalidades autorizadas por CENASE, limitando el acceso al personal estrictamente necesario.",BODY),
+            Paragraph("1. Implementar medidas técnicas y organizativas razonables para evitar pérdida, alteración, acceso, divulgación o tratamiento no autorizado de los datos.",BODY),
+            Paragraph("2. Notificar a CENASE de manera inmediata, y como máximo dentro de 24 horas desde que tenga conocimiento, cualquier sospecha o incidente que pueda comprometer datos o información de CENASE.",BODY),
+            Paragraph("3. Eliminar, devolver o poner a disposición de CENASE la información y datos personales una vez concluida la finalidad de tratamiento, salvo obligación legal de conservación.",BODY),
+            Paragraph("CUARTA: RESPONSABILIDAD",H1),Paragraph("EL PROVEEDOR asume responsabilidad por los incumplimientos que le sean atribuibles, incluyendo los cometidos por su personal o subcontratistas, y deberá colaborar con CENASE en las actividades de contención, investigación y remediación que resulten necesarias.",BODY),
+            Paragraph("QUINTA: DOMICILIO, DIRECCIÓN Y COMUNICACIONES",H1),
+            Paragraph(f"<b>PROVEEDOR</b><br/>Dirección: {ptxt(domicilio)}<br/>Teléfonos: {ptxt(telefono)}<br/>Correo electrónico: {ptxt(correo)}<br/>Persona de contacto: {ptxt(contacto)}",BODY),
+            Paragraph(f"<b>CENASE</b><br/>Dirección: {CENASE['direccion']}<br/>Teléfonos: {CENASE['telefono']}<br/>Correo electrónico: {CENASE['correo']}<br/>Persona de contacto: {CENASE['contacto']}<br/>Web: {CENASE['web']}",BODY),
+            Paragraph("Las partes deberán notificar cualquier cambio en la información de contacto señalada anteriormente.",BODY),
+            Paragraph("DOCUMENTOS ANEXOS",H1),Paragraph("Forman parte o pueden adjuntarse al presente acuerdo, según corresponda: Acuerdo de Seguridad como Asociado de Negocio BASC; copia del RUC; nombramiento o documento de representación; documentos de debida diligencia y demás soportes requeridos por CENASE.",BODY),
+            Paragraph("ACEPTACIÓN Y FIRMA",H1),Paragraph("Libre y voluntariamente, luego de haber leído y comprendido su contenido, las partes aceptan el presente acuerdo. Podrá ser suscrito mediante firma manuscrita o electrónica válida, según corresponda.",BODY),
+            Spacer(1,14),contract_signature_table(s)
         ]
 
     def security_section():
@@ -373,7 +414,7 @@ def build_pdf(s,kind="expediente",ass=None,evidence_items=None):
         ]
         x=[Paragraph("COMPROMISO DE SEGURIDAD",H1),Paragraph("CENASE mantiene un Sistema de Gestión en Control y Seguridad y gestiona a sus asociados de negocio de acuerdo con su criticidad y exposición al riesgo.",BODY)]
         x += [Paragraph(f"• {b}",BODY) for b in bullets]
-        x += [Paragraph(f"Nivel de criticidad registrado para este asociado: <b>{risk.get('label','PENDIENTE')}</b> ({risk.get('score',0)}/100).",BODY),Spacer(1,15),signature_table(s,ass)]
+        x += [Paragraph(f"Nivel de criticidad registrado para este asociado: <b>{risk.get('label','PENDIENTE')}</b> ({risk.get('score',0)}/100).",BODY),Paragraph("El presente acuerdo de seguridad forma parte de los compromisos entre CENASE y el asociado de negocio y deberá ser conocido por el personal que intervenga en el servicio.",BODY),Spacer(1,15),contract_signature_table(s)]
         return x
 
     def verification_section():
@@ -601,6 +642,33 @@ with T2:
         miss=missing_fields(st.session_state.suppliers.iloc[idx].to_dict())
         if miss: st.warning("Falta completar: "+", ".join(miss))
         else: st.success("Datos mínimos completos.")
+
+        # Documentos contractuales listos para firma
+        s_current=st.session_state.suppliers.iloc[idx].to_dict(); key_current=supplier_key(s_current)
+        ass_current=st.session_state.assess.get(key_current,{})
+        ev_current=st.session_state.evidence.get(key_current,[])
+        st.subheader("📝 Documentos para firma")
+        st.caption("Los documentos se generan con los datos del proveedor seleccionado. Revise especialmente representante legal, dirección, teléfono y correo antes de firmar.")
+        preview=pd.DataFrame([
+            {"Campo":"Razón social","Dato":s_current.get('razon','')},
+            {"Campo":"RUC","Dato":s_current.get('ruc','')},
+            {"Campo":"Representante legal","Dato":s_current.get('representante','')},
+            {"Campo":"Dirección","Dato":s_current.get('direccion','')},
+            {"Campo":"Teléfono","Dato":s_current.get('telefono','')},
+            {"Campo":"Correo","Dato":s_current.get('email','')},
+            {"Campo":"Contacto","Dato":s_current.get('contacto','')},
+            {"Campo":"Producto / servicio","Dato":s_current.get('servicio','')},
+        ])
+        st.dataframe(preview,use_container_width=True,hide_index=True)
+        signing_missing=missing_fields(s_current)
+        if signing_missing:
+            st.error("Antes de enviar a firma completa estos datos: "+", ".join(signing_missing)+". El PDF puede descargarse para revisión, pero los campos faltantes aparecerán como PENDIENTE.")
+        d1,d2,d3=st.columns(3)
+        d1.download_button("⬇️ Acuerdo confidencialidad PDF",build_pdf(s_current,'conf',ass_current,ev_current),f"{clean_ruc(s_current.get('ruc'))}_Acuerdo_Confidencialidad_CENASE.pdf","application/pdf",key=f'sign_conf_{key_current}')
+        d2.download_button("⬇️ Acuerdo seguridad BASC PDF",build_pdf(s_current,'seguridad',ass_current,ev_current),f"{clean_ruc(s_current.get('ruc'))}_Acuerdo_Seguridad_BASC_CENASE.pdf","application/pdf",key=f'sign_sec_{key_current}')
+        d3.download_button("📦 Paquete para firma",signing_package_zip(s_current,ass_current,ev_current),f"{clean_ruc(s_current.get('ruc'))}_{safe_filename(s_current.get('razon'))}_PARA_FIRMA.zip","application/zip",key=f'sign_zip_{key_current}')
+        st.info(f"Firmas previstas: **{CENASE['representante']} - Gerente General de CENASE** y **{s_current.get('representante') or 'REPRESENTANTE LEGAL PENDIENTE'} - representante del proveedor**.")
+
         st.subheader("📎 Evidencias / documentos del proveedor")
         uploads=st.file_uploader("Adjuntar PDF, imagen, Excel u otro soporte",accept_multiple_files=True,key=f'files_{key}')
         if uploads and st.button("Guardar archivos adjuntos",key=f'save_files_{key}'):
