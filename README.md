@@ -52,3 +52,10 @@ Streamlit Community Cloud no debe considerarse el repositorio documental definit
 - REQUISISTOS.xlsx
 
 La app no declara automáticamente que una fuente externa está conforme. El resultado debe registrarse con evidencia por el responsable que efectivamente realizó la consulta.
+
+## Versión 2.2
+- Carga los campos del archivo `REPORTE PROVEEDORES CORRECTO 2026.xlsx`: RUC, razón social, nombre comercial, tipo, representante legal, contacto, teléfono, correo, dirección, ubicación física, web, producto/servicio, inicio de operaciones, inicio de servicio, beneficiarios, estado, responsable CENASE y notas.
+- Incluye logo institucional de CENASE en la aplicación, todos los PDF generados y el Reporte Maestro Excel.
+- Incluye botón para descargar una plantilla Excel de carga masiva con los encabezados oficiales.
+- El acuerdo contractual reproduce la estructura del formato entregado por CENASE y genera un solo PDF `Acuerdo_Completo_CENASE_Anexo_BASC.pdf` con Acuerdo de Confidencialidad + Anexo de Seguridad BASC.
+- Mantiene descargas separadas del Acuerdo de Confidencialidad y del Acuerdo BASC cuando se requieran.
